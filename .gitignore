@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Production builds
+dist/
+*/dist/
+
+# Environment files
+.env
+.env.*
+!.env.example
+*.local
+
+# System & Editor
+.DS_Store
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Logs & Cache
+*.log
+npm-debug.log*
+yarn-debug.log*
+.vite/
+*/.vite/
+.vercel
+*.tmp
+*~*
+desktop.ini
+*/desktop.ini
+
+# Media / Audio test notes
+*.opus

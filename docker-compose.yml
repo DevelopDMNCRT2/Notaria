@@ -1,0 +1,151 @@
+services:
+  # 🗄️ Base de Datos PostgreSQL
+  notaria-db:
+    image: postgres:17-alpine
+    container_name: notaria_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: notaria_user
+      POSTGRES_PASSWORD: Notaria2026PostgresPass!
+      POSTGRES_DB: notaria_db
+    ports:
+      - "5435:5432"
+    volumes:
+      - notaria_pgdata:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - notaria-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U notaria_user -d notaria_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 🪣 Almacenamiento MinIO (S3 Compatible)
+  notaria-minio:
+    image: minio/minio:latest
+    container_name: notaria_minio
+    restart: always
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: notaria_admin
+      MINIO_ROOT_PASSWORD: Notaria2026SecurePass!
+    volumes:
+      - notaria_minio_data:/data
+    networks:
+      - notaria-network
+
+  # 🤖 Automatización y Agente de IA n8n
+  notaria-n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    container_name: notaria_n8n
+    restart: always
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_HOST=74.208.149.57
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - N8N_WEBHOOK_URL=http://74.208.149.57:5678/
+      - GENERIC_TIMEZONE=America/Mexico_City
+      - TZ=America/Mexico_City
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
+      - EXECUTIONS_DATA_PRUNE=true
+      - EXECUTIONS_DATA_MAX_AGE=168
+    volumes:
+      - notaria_n8n_data:/home/node/.n8n
+    networks:
+      - notaria-network
+
+  # ⚙️ Backend API Node.js + Express
+  notaria-server:
+    build:
+      context: ./SERVER
+      dockerfile: Dockerfile
+    container_name: notaria_server
+    restart: always
+    ports:
+      - "3002:3000"
+    environment:
+      PORT: 3000
+      PGHOST: notaria-db
+      PGPORT: 5432
+      PGDATABASE: notaria_db
+      PGUSER: notaria_user
+      PGPASSWORD: Notaria2026PostgresPass!
+      PGSSL: "false"
+      AWS_REGION: us-east-1
+      AWS_BUCKET_NAME: notaria-documentos
+      AWS_ACCESS_KEY_ID: notaria_admin
+      AWS_SECRET_ACCESS_KEY: Notaria2026SecurePass!
+      S3_ENDPOINT: http://notaria-minio:9000
+      S3_PUBLIC_URL: http://74.208.149.57:9000
+      N8N_WEBHOOK_URL: http://notaria-n8n:5678/webhook/notaria-asistente
+      N8N_CONFIRMAR_CITA_URL: http://notaria-n8n:5678/webhook/notaria-confirmar-cita
+      N8N_RECHAZAR_CITA_URL: http://notaria-n8n:5678/webhook/notaria-rechazar-cita
+    depends_on:
+      notaria-db:
+        condition: service_healthy
+      notaria-minio:
+        condition: service_started
+    networks:
+      - notaria-network
+
+  # 🖥️ Panel de Administración (Vue 3 + Vite)
+  notaria-admin:
+    build:
+      context: ./ADMIN
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ""
+    container_name: notaria_admin
+    restart: always
+    ports:
+      - "8088:80"
+    depends_on:
+      - notaria-server
+    networks:
+      - notaria-network
+
+  # 🌐 Landing Page Notaría 196 (Vue 3 + Vite)
+  notaria-landing:
+    build:
+      context: ./PAGE
+      dockerfile: Dockerfile
+    container_name: notaria_landing
+    restart: always
+    ports:
+      - "8089:80"
+    networks:
+      - notaria-network
+
+  # 💬 Simulador de WhatsApp Web (Vue 3 + Vite)
+  notaria-client:
+    build:
+      context: ./CLIENT
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ""
+    container_name: notaria_client
+    restart: always
+    ports:
+      - "8090:80"
+    depends_on:
+      - notaria-server
+    networks:
+      - notaria-network
+
+volumes:
+  notaria_pgdata:
+    driver: local
+  notaria_minio_data:
+    driver: local
+  notaria_n8n_data:
+    driver: local
+
+networks:
+  notaria-network:
+    driver: bridge
