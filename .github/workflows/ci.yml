@@ -1,0 +1,113 @@
+name: CI Pull Request Validation
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  changes:
+    name: Detect Changed Components
+    runs-on: ubuntu-latest
+    outputs:
+      server: ${{ steps.filter.outputs.server }}
+      admin: ${{ steps.filter.outputs.admin }}
+      client: ${{ steps.filter.outputs.client }}
+      page: ${{ steps.filter.outputs.page }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Filter Changed Paths
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            server:
+              - 'SERVER/**'
+            admin:
+              - 'ADMIN/**'
+            client:
+              - 'CLIENT/**'
+            page:
+              - 'PAGE/**'
+
+  validate-server:
+    name: Validate Backend (SERVER)
+    needs: changes
+    if: ${{ needs.changes.outputs.server == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Dependencies
+        run: cd SERVER && (npm ci --prefer-offline || npm install)
+
+      - name: Check Backend Syntax
+        run: node --check SERVER/index.js
+
+  validate-admin:
+    name: Validate Admin Panel (ADMIN)
+    needs: changes
+    if: ${{ needs.changes.outputs.admin == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Dependencies
+        run: cd ADMIN && (npm ci --prefer-offline || npm install)
+
+      - name: Build Admin App
+        run: cd ADMIN && npm run build
+
+  validate-client:
+    name: Validate Client Portal (CLIENT)
+    needs: changes
+    if: ${{ needs.changes.outputs.client == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Dependencies
+        run: cd CLIENT && (npm ci --prefer-offline || npm install)
+
+      - name: Build Client App
+        run: cd CLIENT && npm run build
+
+  validate-page:
+    name: Validate Landing Page (PAGE)
+    needs: changes
+    if: ${{ needs.changes.outputs.page == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Dependencies
+        run: cd PAGE && (npm ci --prefer-offline || npm install)
+
+      - name: Build Landing Page
+        run: cd PAGE && npm run build
