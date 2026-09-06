@@ -260,10 +260,10 @@ app.get('/api/storage', async (req, res) => {
 // --- CONFIGURACIÓN DE POSTGRESQL ---
 const { Pool } = require('pg');
 const pool = new Pool({
-  host: process.env.PGHOST,
-  database: process.env.PGDATABASE,
-  user: process.env.PGUSER,
-  password: process.env.PGPASSWORD,
+  host: process.env.PGHOST || 'notaria-db',
+  database: process.env.PGDATABASE || 'notaria_db',
+  user: process.env.PGUSER || 'notaria_user',
+  password: String(process.env.PGPASSWORD || 'Notaria2026PostgresPass!'),
   port: parseInt(process.env.PGPORT || '5432', 10),
   ssl: process.env.PGSSL === 'true' ? { rejectUnauthorized: false } : false
 });
