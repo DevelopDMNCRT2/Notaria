@@ -225,7 +225,7 @@ app.get('/api/storage', async (req, res) => {
     // Paginar por si hay más de 1000 archivos
     while (isTruncated) {
       const command = new ListObjectsV2Command({
-        Bucket: process.env.AWS_BUCKET_NAME,
+        Bucket: process.env.AWS_BUCKET_NAME || 'notaria-documentos',
         ContinuationToken: continuationToken,
       });
 
