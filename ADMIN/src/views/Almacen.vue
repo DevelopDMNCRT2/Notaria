@@ -56,7 +56,7 @@
                     <button @click="openFile(file)" class="p-2 text-blue-500 bg-blue-50 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20 rounded-xl transition-colors" title="Ver">
                       <Eye class="w-4.5 h-4.5" />
                     </button>
-                    <a :href="file.downloadUrl || file.url" target="_blank" download class="p-2 text-brand-500 bg-brand-50 hover:bg-brand-100 dark:bg-brand-500/10 dark:text-brand-400 dark:hover:bg-brand-500/20 rounded-xl transition-colors" title="Descargar">
+                    <a :href="file.downloadUrl || file.url" target="_blank" download class="p-2 text-brand-500 bg-brand-50 hover:bg-brand-100 dark:bg-brand-500/10 dark:text-brand-500 dark:hover:bg-brand-500/20 rounded-xl transition-colors" title="Descargar">
                       <Download class="w-4.5 h-4.5" />
                     </a>
                     <button @click="shareFile(file)" class="p-2 text-green-500 bg-green-50 hover:bg-green-100 dark:bg-green-500/10 dark:text-green-400 dark:hover:bg-green-500/20 rounded-xl transition-colors" title="Compartir">

@@ -24,13 +24,13 @@
           v-if="isExpanded || isHovered || isMobileOpen"
           src="/logo_notaria.jpeg"
           alt="Notaría Logo"
-          class="h-20 w-auto"
+          class="h-20 w-auto rounded-lg dark:mix-blend-screen transition-all duration-300"
         />
         <img 
           v-else
           src="/logo_notaria.jpeg"
           alt="N"
-          class="h-10 w-10 object-cover rounded-full mx-auto"
+          class="h-10 w-10 object-cover rounded-full mx-auto dark:mix-blend-screen transition-all duration-300"
         />
       </router-link>
     </div>
