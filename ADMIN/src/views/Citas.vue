@@ -63,17 +63,33 @@
                   </div>
                 </div>
 
-                <!-- FECHAS -->
-                <div class="grid grid-cols-1 gap-6">
+                <!-- FECHA Y HORA SEPARADAS -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div>
                     <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
-                      Fecha y Hora de Cita
+                      Fecha de Cita
                     </label>
                     <input
-                      v-model="eventStartDate"
-                      type="datetime-local"
+                      v-model="eventFecha"
+                      type="date"
+                      required
                       class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:focus:border-brand-800"
                     />
+                  </div>
+
+                  <div>
+                    <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
+                      Hora de Cita
+                    </label>
+                    <select
+                      v-model="eventHora"
+                      required
+                      class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:focus:border-brand-800 cursor-pointer"
+                    >
+                      <option v-for="t in availableTimes" :key="t" :value="t">
+                        {{ formatTimeLabel(t) }}
+                      </option>
+                    </select>
                   </div>
                 </div>
               </div>
@@ -129,9 +145,27 @@ const selectedEvent = ref(null)
 const eventTitle = ref('')
 const eventNombre = ref('')
 const eventCelular = ref('')
-const eventStartDate = ref('')
+const eventFecha = ref('')
+const eventHora = ref('09:00')
 const events = ref([])
 
+// Intervalos de 30 min entre 09:00 y 15:30
+const availableTimes = [
+  '09:00', '09:30', '10:00', '10:30',
+  '11:00', '11:30', '12:00', '12:30',
+  '13:00', '13:30', '14:00', '14:30',
+  '15:00', '15:30'
+]
+
+const formatTimeLabel = (timeStr) => {
+  if (!timeStr) return '';
+  const [hStr, mStr] = timeStr.split(':');
+  const h = parseInt(hStr, 10);
+  const period = h >= 12 ? 'p.m.' : 'a.m.';
+  const displayH = h % 12 === 0 ? 12 : h % 12;
+  const padH = String(displayH).padStart(2, '0');
+  return `${padH}:${mStr} ${period} (${timeStr} hrs)`;
+}
 
 onMounted(async () => {
   await fetchCitas();
@@ -180,14 +214,34 @@ const resetModalFields = () => {
   eventTitle.value = ''
   eventNombre.value = ''
   eventCelular.value = ''
-  eventStartDate.value = ''
+  eventFecha.value = ''
+  eventHora.value = '09:00'
   selectedEvent.value = null
+}
+
+const parseStartString = (raw) => {
+  if (!raw) return { fecha: '', hora: '09:00' };
+  if (raw.includes('T')) {
+    const [d, t] = raw.split('T');
+    const h = t.slice(0, 5) || '09:00';
+    return { fecha: d, hora: availableTimes.includes(h) ? h : '09:00' };
+  }
+  return { fecha: raw, hora: '09:00' };
 }
 
 const handleDateSelect = (selectInfo) => {
   resetModalFields()
-  const startStr = selectInfo.startStr
-  eventStartDate.value = startStr.includes('T') ? startStr.slice(0, 16) : `${startStr}T09:00`
+  const parsed = parseStartString(selectInfo.startStr)
+  eventFecha.value = parsed.fecha
+  eventHora.value = parsed.hora
+  openModal()
+}
+
+const handleDateClick = (info) => {
+  resetModalFields()
+  const parsed = parseStartString(info.dateStr)
+  eventFecha.value = parsed.fecha
+  eventHora.value = parsed.hora
   openModal()
 }
 
@@ -204,21 +258,26 @@ const handleEventClick = (clickInfo) => {
     const dd = String(event.start.getDate()).padStart(2, '0')
     const hh = String(event.start.getHours()).padStart(2, '0')
     const min = String(event.start.getMinutes()).padStart(2, '0')
-    eventStartDate.value = `${yyyy}-${mm}-${dd}T${hh}:${min}`
+    eventFecha.value = `${yyyy}-${mm}-${dd}`
+    const timeMatch = `${hh}:${min}`
+    eventHora.value = availableTimes.includes(timeMatch) ? timeMatch : '09:00'
   } else {
-    eventStartDate.value = ''
+    eventFecha.value = ''
+    eventHora.value = '09:00'
   }
   openModal()
 }
 
 const handleAddOrUpdateEvent = async () => {
-  if (!eventTitle.value || !eventStartDate.value) return;
+  if (!eventTitle.value || !eventFecha.value || !eventHora.value) return;
+
+  const start = `${eventFecha.value}T${eventHora.value}:00`
 
   const eventData = {
     title: eventTitle.value,
     nombre: eventNombre.value,
     celular: eventCelular.value,
-    start: eventStartDate.value,
+    start: start,
     status: 'confirmado'
   }
 
@@ -278,12 +337,7 @@ const renderEventContent = (eventInfo) => {
   }
 }
 
-const handleDateClick = (info) => {
-  resetModalFields()
-  const dateStr = info.dateStr
-  eventStartDate.value = dateStr.includes('T') ? dateStr.slice(0, 16) : `${dateStr}T09:00`
-  openModal()
-}
+
 
 const calendarOptions = reactive({
   plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin],
