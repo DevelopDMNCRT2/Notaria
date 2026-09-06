@@ -15,8 +15,12 @@ import {
   Stamp,
   Star,
   Users,
-  Building
+  Building,
+  MessageCircle
 } from 'lucide-vue-next';
+
+const clientPort = typeof window !== 'undefined' && window.location.port === '5173' ? '5174' : '8090';
+const whatsappUrl = import.meta.env.VITE_CLIENT_URL || (typeof window !== 'undefined' ? `${window.location.protocol}//${window.location.hostname}:${clientPort}` : 'http://localhost:8090');
 
 const categoriasServicios = ref([
   {
@@ -95,11 +99,23 @@ const categoriasServicios = ref([
             Brindamos servicios notariales con integridad, rapidez y certeza. 
             Protegemos lo que más importa para ti y tu familia.
           </p>
+          <div class="hero-cta-group">
+            <a :href="whatsappUrl" target="_blank" rel="noopener noreferrer" class="btn-whatsapp-hero">
+              <MessageCircle class="btn-icon" />
+              Agendar Cita por WhatsApp
+            </a>
+          </div>
         </div>
         
         <div id="contacto" class="hero-info-card">
           <h3>Contacto</h3>
           <ul class="contact-list-hero">
+            <li>
+              <Phone class="contact-icon" />
+              <a :href="whatsappUrl" target="_blank" rel="noopener noreferrer" class="contact-link">
+                WhatsApp / Citas: 443 123 4567
+              </a>
+            </li>
             <li>
               <Mail class="contact-icon" />
               <span>notariapublica196@outlook.com</span>
@@ -179,6 +195,14 @@ const categoriasServicios = ref([
         <p>&copy; 2026 Notaría Pública. Todos los derechos reservados.</p>
       </div>
     </footer>
+
+    <!-- Botón Flotante de WhatsApp -->
+    <a :href="whatsappUrl" target="_blank" rel="noopener noreferrer" class="floating-whatsapp" title="Agendar Cita por WhatsApp">
+      <svg class="whatsapp-svg" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12.012 2c-5.506 0-9.989 4.478-9.99 9.984 0 1.763.459 3.486 1.332 5.001L2 22l5.12-1.339c1.464.798 3.119 1.219 4.887 1.22h.005c5.507 0 9.99-4.479 9.99-9.986 0-2.668-1.039-5.176-2.927-7.063C17.186 3.037 14.677 2 12.012 2zm5.952 14.372c-.25.702-1.246 1.341-1.748 1.428-.465.08-.946.126-1.503-.058-.337-.11-.777-.253-1.488-.56-3.003-1.298-4.962-4.323-5.113-4.524-.15-.201-1.228-1.636-1.228-3.12 0-1.484.777-2.215 1.052-2.516.275-.301.601-.376.802-.376.201 0 .401.001.576.01.188.01.439-.071.689.526.25.597.852 2.08.927 2.23.075.15.125.326.025.526-.1.201-.15.326-.301.502-.15.175-.315.392-.45.526-.15.15-.306.313-.131.613.175.301.781 1.288 1.674 2.083 1.148 1.023 2.118 1.341 2.419 1.491.301.15.476.125.651-.075.175-.201.752-.877.952-1.178.2-.301.401-.25.676-.15.275.1.1.752.852 2.181 2.08.075.15.125.326.075.476-.05.15-.25.376-.501.702z"/>
+      </svg>
+      <span class="whatsapp-tooltip">¡Agenda tu Cita por WhatsApp!</span>
+    </a>
   </div>
 </template>
 
@@ -692,6 +716,120 @@ p {
   }
   .category-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+/* --- WhatsApp CTA Styles --- */
+.hero-cta-group {
+  margin-top: 1.75rem;
+}
+
+.btn-whatsapp-hero {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  background-color: #25D366;
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 1rem;
+  padding: 0.85rem 1.75rem;
+  border-radius: 9999px;
+  text-decoration: none;
+  box-shadow: 0 4px 15px rgba(37, 211, 102, 0.4);
+  transition: all 0.3s ease;
+}
+
+.btn-whatsapp-hero:hover {
+  background-color: #20ba5a;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(37, 211, 102, 0.5);
+  color: #ffffff;
+}
+
+.btn-icon {
+  width: 22px;
+  height: 22px;
+}
+
+.contact-link {
+  color: #ffffff;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.contact-link:hover {
+  color: #25D366;
+}
+
+/* --- Floating WhatsApp Widget --- */
+.floating-whatsapp {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  width: 60px;
+  height: 60px;
+  background-color: #25D366;
+  color: #ffffff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(37, 211, 102, 0.5);
+  z-index: 999;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  animation: pulse 2s infinite;
+}
+
+.floating-whatsapp:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 24px rgba(37, 211, 102, 0.7);
+  color: #ffffff;
+}
+
+.whatsapp-svg {
+  width: 32px;
+  height: 32px;
+}
+
+.whatsapp-tooltip {
+  position: absolute;
+  right: 70px;
+  background-color: #1e293b;
+  color: #ffffff;
+  padding: 0.5rem 0.85rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.floating-whatsapp:hover .whatsapp-tooltip {
+  opacity: 1;
+}
+
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.6); }
+  70% { box-shadow: 0 0 0 15px rgba(37, 211, 102, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(37, 211, 102, 0); }
+}
+
+@media (max-width: 768px) {
+  .floating-whatsapp {
+    bottom: 1.5rem;
+    right: 1.5rem;
+    width: 52px;
+    height: 52px;
+  }
+  .whatsapp-svg {
+    width: 28px;
+    height: 28px;
+  }
+  .whatsapp-tooltip {
+    display: none;
   }
 }
 </style>
