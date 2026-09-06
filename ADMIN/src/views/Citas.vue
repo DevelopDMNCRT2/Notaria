@@ -278,6 +278,13 @@ const renderEventContent = (eventInfo) => {
   }
 }
 
+const handleDateClick = (info) => {
+  resetModalFields()
+  const dateStr = info.dateStr
+  eventStartDate.value = dateStr.includes('T') ? dateStr.slice(0, 16) : `${dateStr}T09:00`
+  openModal()
+}
+
 const calendarOptions = reactive({
   plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin],
   initialView: 'timeGridDay',
@@ -293,7 +300,7 @@ const calendarOptions = reactive({
       buttonText: '3 días'
     }
   },
-  hiddenDays: [0], // 0 is Sunday
+  hiddenDays: [0, 6], // 0: Domingo, 6: Sábado (sin servicio)
   allDaySlot: false, // Ocultar la fila "all-day"
   slotMinTime: '09:00:00', // Hora de inicio general
   slotMaxTime: '17:00:00', // Hora de fin general (exclusivo, permite ver las 16:00)
@@ -301,15 +308,9 @@ const calendarOptions = reactive({
     {
       daysOfWeek: [1, 2, 3, 4, 5], // Lunes a Viernes
       startTime: '09:00',
-      endTime: '17:00' // Para permitir citas a las 16:00
-    },
-    {
-      daysOfWeek: [6], // Sábado
-      startTime: '09:00',
-      endTime: '14:00' // Para permitir citas a las 13:00
+      endTime: '17:00'
     }
   ],
-  selectConstraint: 'businessHours', // Impide agendar fuera de este horario
   expandRows: true, // Expandir filas para rellenar la altura de forma simétrica
   locale: 'es', // Set calendar language to Spanish
   buttonText: {
@@ -322,6 +323,7 @@ const calendarOptions = reactive({
   events: events,
   selectable: true,
   select: handleDateSelect,
+  dateClick: handleDateClick,
   eventClick: handleEventClick,
   eventContent: renderEventContent,
 })
