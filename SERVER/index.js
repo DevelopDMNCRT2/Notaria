@@ -331,15 +331,26 @@ initDB();
 // --- ENDPOINTS DE CITAS ---
 // ============================================================
 
-// Obtener todas las citas CONFIRMADAS (para el calendario)
+const formatDatePart = (val) => {
+  if (!val) return '';
+  if (val instanceof Date) {
+    const yyyy = val.getUTCFullYear();
+    const mm = String(val.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(val.getUTCDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+  const str = String(val);
+  return str.includes('T') ? str.split('T')[0] : str;
+};
+
+// Obtener todas las citas CONFIRMADAS y REAGENDADAS (para el calendario)
 app.get('/api/citas', async (req, res) => {
   try {
-    const result = await pool.query("SELECT * FROM Citas WHERE estado = 'confirmado' ORDER BY fecha ASC, horario ASC");
+    const result = await pool.query("SELECT * FROM Citas WHERE estado IN ('confirmado', 'reagendado') ORDER BY fecha ASC, horario ASC");
 
     const events = result.rows.map(row => {
       try {
-        const dateStr = (row.fecha instanceof Date) ? row.fecha.toISOString() : String(row.fecha);
-        const datePart = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+        const datePart = formatDatePart(row.fecha);
         const start = `${datePart}T${row.horario || '00:00:00'}`;
         return {
           id: row.id.toString(),
@@ -347,7 +358,8 @@ app.get('/api/citas', async (req, res) => {
           start: start,
           extendedProps: {
             nombre: row.client_nombre || 'Cliente',
-            celular: row.telefono || ''
+            celular: row.telefono || '',
+            estado: row.estado
           }
         };
       } catch (e) {
@@ -370,11 +382,11 @@ app.get('/api/solicitudes', async (req, res) => {
 
     const normalized = result.rows.map(row => {
       try {
-        const dateStr = (row.fecha instanceof Date) ? row.fecha.toISOString() : String(row.fecha);
-        const datePart = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+        const datePart = formatDatePart(row.fecha);
         const start_date = `${datePart}T${row.horario || '00:00:00'}`;
         return {
           ...row,
+          fecha: datePart,
           title: row.tramite || 'Solicitud',
           nombre: row.client_nombre || 'Cliente',
           celular: row.telefono || '',
@@ -544,8 +556,7 @@ app.put('/api/citas/:id', async (req, res) => {
     const current = currentRes.rows[0];
 
     // 2. Normalizar la fecha actual (de DB) para poder comparar (Y-m-d)
-    const currentDate = current.fecha instanceof Date ? current.fecha : new Date(current.fecha);
-    const currentDateStr = currentDate.toISOString().split('T')[0];
+    const currentDateStr = formatDatePart(current.fecha);
 
     // 3. Normalizar horario actual (hh:mm)
     const currentHorario = (current.horario || '00:00:00').substring(0, 5);
