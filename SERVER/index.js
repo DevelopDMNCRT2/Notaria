@@ -388,6 +388,14 @@ app.get('/api/citas', async (req, res) => {
 const handleDisponibilidad = async (req, res) => {
   try {
     const { fecha: fechaQuery, hora: horaQuery } = req.query;
+
+    if (!fechaQuery || typeof fechaQuery !== 'string' || !fechaQuery.trim()) {
+      return res.status(400).json({
+        error: 'fecha_requerida',
+        message: 'El parámetro fecha es requerido en formato YYYY-MM-DD para consultar la disponibilidad.'
+      });
+    }
+
     const fechaFinal = parseValidDate(fechaQuery);
 
     const standardSlots = [
@@ -733,6 +741,16 @@ const handleCreateCita = async (req, res, defaultEstado = 'confirmado') => {
   const nombreFinal = client_nombre || nombre || 'Cliente';
   const telefonoFinal = telefono || celular || '';
   const estadoFinal = estado || defaultEstado;
+
+  const fechaParam = (fechaInput && typeof fechaInput === 'string' && fechaInput.trim()) || (start && typeof start === 'string' && start.trim());
+  const horarioParam = (horarioInput && typeof horarioInput === 'string' && horarioInput.trim()) || (start && typeof start === 'string' && start.includes('T') && start.split('T')[1].trim());
+
+  if (!fechaParam || !horarioParam) {
+    return res.status(400).json({
+      error: 'datos_incompletos',
+      message: 'La fecha y el horario son obligatorios para registrar la cita o solicitud.'
+    });
+  }
 
   const fechaFinal = parseValidDate(fechaInput, start);
   const horarioFinal = parseValidTime(horarioInput, start);
