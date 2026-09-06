@@ -2,7 +2,7 @@
   <AdminLayout>
     <div class="mb-5 flex justify-end mt-4">
       <button 
-        @click="openModal" 
+        @click="openModal('create')" 
         class="inline-flex items-center justify-center rounded-xl bg-brand-500 px-6 py-2.5 text-center font-medium text-white hover:bg-brand-600 shadow-theme-xs transition-shadow lg:px-8 xl:px-10"
       >
         Agregar Nuevo
@@ -80,46 +80,64 @@
           <form @submit.prevent="saveUser" class="space-y-4">
             <div>
               <label class="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">Nombre</label>
-              <input v-model="formData.nombre" :disabled="modalMode === 'view'" type="text" required class="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white disabled:opacity-60 disabled:cursor-not-allowed" />
+              <input v-model="formData.nombre" :disabled="modalMode === 'view'" type="text" required placeholder="Nombre completo" class="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white disabled:opacity-60 disabled:cursor-not-allowed" />
             </div>
             
             <div>
               <label class="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">Correo</label>
-              <input v-model="formData.correo" :disabled="modalMode === 'view'" type="email" required class="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white disabled:opacity-60 disabled:cursor-not-allowed" />
+              <input v-model="formData.correo" :disabled="modalMode === 'view'" type="email" required placeholder="correo@ejemplo.com" class="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white disabled:opacity-60 disabled:cursor-not-allowed" />
             </div>
             
             <div>
               <label class="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">Usuario</label>
-              <input v-model="formData.usuario" :disabled="modalMode === 'view'" type="text" required class="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white disabled:opacity-60 disabled:cursor-not-allowed" />
+              <input v-model="formData.usuario" :disabled="modalMode === 'view'" type="text" required placeholder="nombre_usuario" class="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white disabled:opacity-60 disabled:cursor-not-allowed" />
             </div>
 
-            <!-- Campos de Contraseña para CREAR -->
+            <!-- Campos de Contraseña para CREAR (obligatorio) -->
             <div v-if="modalMode === 'create'" class="grid grid-cols-2 gap-4">
               <div>
                 <label class="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">Contraseña</label>
-                <input v-model="formData.password" type="password" required class="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white" />
+                <input v-model="formData.password" type="password" required placeholder="Mínimo 8 caracteres" class="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white" />
               </div>
               <div>
                 <label class="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">Confirmar Contraseña</label>
-                <input v-model="formData.confirmPassword" type="password" required class="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white" />
+                <input v-model="formData.confirmPassword" type="password" required placeholder="Repite la contraseña" class="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white" />
               </div>
             </div>
 
-            <!-- Campo Único de Contraseña Bloqueado para EDITAR y VER -->
-            <div v-else>
-              <label class="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">Contraseña</label>
-              <input v-model="formData.password" type="text" disabled class="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white disabled:opacity-60 disabled:cursor-not-allowed" />
+            <!-- Campos de Contraseña para EDITAR (opcional) -->
+            <div v-else-if="modalMode === 'edit'" class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">Nueva Contraseña <span class="text-xs text-gray-400 font-normal">(dejar vacío para no cambiar)</span></label>
+                <input v-model="formData.password" type="password" placeholder="Nueva contraseña" class="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white" />
+              </div>
+              <div>
+                <label class="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">Confirmar Nueva Contraseña</label>
+                <input v-model="formData.confirmPassword" type="password" placeholder="Repite la nueva contraseña" class="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white" />
+              </div>
             </div>
 
-            <p v-if="passwordMismatch && modalMode === 'create'" class="text-sm text-error-500">Las contraseñas no coinciden.</p>
+            <p v-if="passwordMismatch && (modalMode === 'create' || modalMode === 'edit')" class="text-sm text-error-500">Las contraseñas no coinciden.</p>
             
             <div>
               <label class="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">Rol</label>
-              <select v-model="formData.rol" :disabled="modalMode === 'view'" required class="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white disabled:opacity-60 disabled:cursor-not-allowed">
-                <option value="Sistemas">Sistemas</option>
-                <option value="Administrador">Administrador</option>
-                <option value="Operativo">Operativo</option>
-              </select>
+              <div class="relative">
+                <select
+                  v-model="formData.rol"
+                  :disabled="modalMode === 'view'"
+                  required
+                  class="w-full appearance-none rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 disabled:opacity-60 disabled:cursor-not-allowed pr-10"
+                >
+                  <option value="Sistemas">Sistemas</option>
+                  <option value="Administrador">Administrador</option>
+                  <option value="Operativo">Operativo</option>
+                </select>
+                <div class="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+                  <svg class="w-4 h-4 text-gray-400 dark:text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+                  </svg>
+                </div>
+              </div>
             </div>
             
             <div class="flex justify-end pt-4 gap-3">
