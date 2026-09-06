@@ -16,8 +16,8 @@ const s3Config = {
   },
 };
 
-if (process.env.S3_ENDPOINT) {
-  s3Config.endpoint = process.env.S3_ENDPOINT;
+if (process.env.S3_ENDPOINT || true) {
+  s3Config.endpoint = process.env.S3_ENDPOINT || 'http://127.0.0.1:9000';
   s3Config.forcePathStyle = true;
 }
 
