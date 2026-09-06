@@ -110,7 +110,7 @@ const categoriasServicios = ref([
             </li>
             <li class="align-start">
               <Clock class="contact-icon mt-1" />
-              <span>Lunes a Viernes: 9:00 a 16:00<br>Sábados: 9:00 a 13:00</span>
+              <span>Lunes a Viernes: 9:00 a 16:00</span>
             </li>
           </ul>
         </div>
