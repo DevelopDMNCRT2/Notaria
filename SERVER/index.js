@@ -268,6 +268,10 @@ const pool = new Pool({
   ssl: process.env.PGSSL === 'true' ? { rejectUnauthorized: false } : false
 });
 
+pool.on('error', (err, client) => {
+  console.error('Error inesperado en cliente inactivo de PostgreSQL:', err.message);
+});
+
 // Inicializar tabla de Citas
 const initDB = async () => {
   try {
