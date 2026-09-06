@@ -53,11 +53,14 @@
 
                   <div>
                     <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
-                      Celular
+                      Celular (10 dígitos)
                     </label>
                     <input
                       v-model="eventCelular"
-                      type="text"
+                      type="tel"
+                      maxlength="10"
+                      placeholder="ej. 5512345678"
+                      @input="eventCelular = eventCelular.replace(/\D/g, '').slice(0, 10)"
                       class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-brand-800"
                     />
                   </div>
@@ -270,6 +273,11 @@ const handleEventClick = (clickInfo) => {
 
 const handleAddOrUpdateEvent = async () => {
   if (!eventTitle.value || !eventFecha.value || !eventHora.value) return;
+
+  if (eventCelular.value && eventCelular.value.length !== 10) {
+    alert('El número de celular debe ser de exactamente 10 dígitos.');
+    return;
+  }
 
   const start = `${eventFecha.value}T${eventHora.value}:00`
 

@@ -334,9 +334,9 @@ initDB();
 const formatDatePart = (val) => {
   if (!val) return '';
   if (val instanceof Date) {
-    const yyyy = val.getFullYear();
-    const mm = String(val.getMonth() + 1).padStart(2, '0');
-    const dd = String(val.getDate()).padStart(2, '0');
+    const yyyy = val.getUTCFullYear();
+    const mm = String(val.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(val.getUTCDate()).padStart(2, '0');
     return `${yyyy}-${mm}-${dd}`;
   }
   const str = String(val);
@@ -556,8 +556,7 @@ app.put('/api/citas/:id', async (req, res) => {
     const current = currentRes.rows[0];
 
     // 2. Normalizar la fecha actual (de DB) para poder comparar (Y-m-d)
-    const currentDate = current.fecha instanceof Date ? current.fecha : new Date(current.fecha);
-    const currentDateStr = currentDate.toISOString().split('T')[0];
+    const currentDateStr = formatDatePart(current.fecha);
 
     // 3. Normalizar horario actual (hh:mm)
     const currentHorario = (current.horario || '00:00:00').substring(0, 5);
