@@ -186,10 +186,8 @@ const resetModalFields = () => {
 
 const handleDateSelect = (selectInfo) => {
   resetModalFields()
-  eventStartDate.value = selectInfo.startStr
-  eventEndDate.value = selectInfo.endStr.includes('T') 
-    ? selectInfo.endStr.split('T')[0] 
-    : selectInfo.endStr || selectInfo.startStr
+  const startStr = selectInfo.startStr
+  eventStartDate.value = startStr.includes('T') ? startStr.slice(0, 16) : `${startStr}T09:00`
   openModal()
 }
 
@@ -201,9 +199,12 @@ const handleEventClick = (clickInfo) => {
   eventCelular.value = event.extendedProps.celular || ''
   
   if (event.start) {
-    const tzOffset = event.start.getTimezoneOffset() * 60000; // offset in milliseconds
-    const localISOTime = (new Date(event.start - tzOffset)).toISOString().slice(0, 16);
-    eventStartDate.value = localISOTime;
+    const yyyy = event.start.getFullYear()
+    const mm = String(event.start.getMonth() + 1).padStart(2, '0')
+    const dd = String(event.start.getDate()).padStart(2, '0')
+    const hh = String(event.start.getHours()).padStart(2, '0')
+    const min = String(event.start.getMinutes()).padStart(2, '0')
+    eventStartDate.value = `${yyyy}-${mm}-${dd}T${hh}:${min}`
   } else {
     eventStartDate.value = ''
   }
