@@ -3,7 +3,8 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const axios = require('axios');
 require('dotenv').config();
-const { S3Client, PutObjectCommand, ListObjectsV2Command } = require('@aws-sdk/client-s3');
+const multer = require('multer');
+const { S3Client, PutObjectCommand, ListObjectsV2Command, GetObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 
 // --- CONFIGURACIÓN DE AWS S3 / MINIO ---
@@ -21,6 +22,10 @@ if (process.env.S3_ENDPOINT) {
 }
 
 const s3Client = new S3Client(s3Config);
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 50 * 1024 * 1024 }, // Límite 50MB
+});
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -43,10 +48,117 @@ app.use(cors({
 app.use(bodyParser.json());
 
 // ============================================================
-// --- ENDPOINT DE SUBIDA A S3 ---
+// --- ENDPOINTS DE ALMACENAMIENTO (MINIO / S3) ---
 // ============================================================
 
-// Genera una URL prefirmada para subir un archivo directamente a S3
+// Subida directa multipart a MinIO/S3
+app.post('/api/files/upload', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No se envió ningún archivo en el campo "file"' });
+    }
+
+    const key = `documentos/${Date.now()}-${req.file.originalname}`;
+    const command = new PutObjectCommand({
+      Bucket: process.env.AWS_BUCKET_NAME || 'notaria-documentos',
+      Key: key,
+      Body: req.file.buffer,
+      ContentType: req.file.mimetype,
+    });
+
+    await s3Client.send(command);
+
+    res.status(201).json({
+      success: true,
+      key,
+      name: req.file.originalname,
+      size: req.file.size,
+      mimeType: req.file.mimetype,
+      viewUrl: `/api/files/view/${encodeURIComponent(key)}`,
+      downloadUrl: `/api/files/download/${encodeURIComponent(key)}`,
+    });
+  } catch (error) {
+    console.error('Error al subir archivo a MinIO/S3:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Streaming de previsualización directa desde MinIO/S3
+app.get('/api/files/view/*key', async (req, res) => {
+  try {
+    const rawKey = req.params.key;
+    const key = Array.isArray(rawKey) ? rawKey.join('/') : rawKey;
+    if (!key) return res.status(400).json({ error: 'Key requerida' });
+
+    const command = new GetObjectCommand({
+      Bucket: process.env.AWS_BUCKET_NAME || 'notaria-documentos',
+      Key: key,
+    });
+
+    const data = await s3Client.send(command);
+    if (data.ContentType) {
+      res.setHeader('Content-Type', data.ContentType);
+    }
+    res.setHeader('Content-Disposition', 'inline');
+    if (data.ContentLength) {
+      res.setHeader('Content-Length', data.ContentLength);
+    }
+    data.Body.pipe(res);
+  } catch (error) {
+    console.error('Error al visualizar archivo de MinIO:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Streaming de descarga forzada desde MinIO/S3
+app.get('/api/files/download/*key', async (req, res) => {
+  try {
+    const rawKey = req.params.key;
+    const key = Array.isArray(rawKey) ? rawKey.join('/') : rawKey;
+    if (!key) return res.status(400).json({ error: 'Key requerida' });
+
+    const command = new GetObjectCommand({
+      Bucket: process.env.AWS_BUCKET_NAME || 'notaria-documentos',
+      Key: key,
+    });
+
+    const data = await s3Client.send(command);
+    const filename = key.split('/').pop() || 'archivo';
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+    if (data.ContentType) {
+      res.setHeader('Content-Type', data.ContentType);
+    }
+    if (data.ContentLength) {
+      res.setHeader('Content-Length', data.ContentLength);
+    }
+    data.Body.pipe(res);
+  } catch (error) {
+    console.error('Error al descargar archivo de MinIO:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Eliminar archivo de MinIO/S3
+app.delete('/api/files/*key', async (req, res) => {
+  try {
+    const rawKey = req.params.key;
+    const key = Array.isArray(rawKey) ? rawKey.join('/') : rawKey;
+    if (!key) return res.status(400).json({ error: 'Key requerida' });
+
+    const command = new DeleteObjectCommand({
+      Bucket: process.env.AWS_BUCKET_NAME || 'notaria-documentos',
+      Key: key,
+    });
+
+    await s3Client.send(command);
+    res.json({ success: true, message: 'Archivo eliminado de MinIO' });
+  } catch (error) {
+    console.error('Error al eliminar archivo de MinIO:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Genera una URL prefirmada para subir un archivo (legacy fallback)
 app.post('/api/upload', async (req, res) => {
   try {
     const { fileName, fileType } = req.body;
@@ -55,14 +167,12 @@ app.post('/api/upload', async (req, res) => {
     }
 
     const command = new PutObjectCommand({
-      Bucket: process.env.AWS_BUCKET_NAME,
-      Key: `documentos/${Date.now()}-${fileName}`, // Con fecha para evitar duplicados
+      Bucket: process.env.AWS_BUCKET_NAME || 'notaria-documentos',
+      Key: `documentos/${Date.now()}-${fileName}`,
       ContentType: fileType,
     });
 
-    // URL que expira en 60 segundos
     const uploadUrl = await getSignedUrl(s3Client, command, { expiresIn: 60 });
-
     res.status(200).json({ uploadUrl, key: command.input.Key });
   } catch (error) {
     console.error('Error generando URL de S3:', error);
@@ -70,29 +180,27 @@ app.post('/api/upload', async (req, res) => {
   }
 });
 
-// Listar archivos del bucket S3
+// Listar archivos del bucket S3 / MinIO
 app.get('/api/files', async (req, res) => {
   try {
     const command = new ListObjectsV2Command({
-      Bucket: process.env.AWS_BUCKET_NAME,
+      Bucket: process.env.AWS_BUCKET_NAME || 'notaria-documentos',
     });
 
     const data = await s3Client.send(command);
     const files = (data.Contents || [])
-      .filter(item => item.Size > 0) // Excluir carpetas vacías
+      .filter(item => item.Size > 0)
       .map(item => {
-        // Obtener solo el nombre del archivo (quitar carpetas y timestamp)
         const parts = item.Key.split('/');
         const rawName = parts[parts.length - 1];
-        const fileUrl = process.env.S3_PUBLIC_URL
-          ? `${process.env.S3_PUBLIC_URL}/${process.env.AWS_BUCKET_NAME || 'notaria-documentos'}/${item.Key}`
-          : `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${item.Key}`;
+        const cleanName = rawName.replace(/^\d+-/, '');
         return {
           key: item.Key,
-          name: name || rawName,
+          name: cleanName || rawName,
           size: item.Size,
           lastModified: item.LastModified,
-          url: fileUrl,
+          url: `/api/files/view/${encodeURIComponent(item.Key)}`,
+          downloadUrl: `/api/files/download/${encodeURIComponent(item.Key)}`,
         };
       })
       .sort((a, b) => new Date(b.lastModified) - new Date(a.lastModified));
