@@ -68,7 +68,7 @@ services:
     container_name: notaria_server
     restart: always
     ports:
-      - "3002:3000"
+      - "3012:3000"
     environment:
       PORT: 3000
       PGHOST: notaria-db
@@ -104,7 +104,7 @@ services:
     container_name: notaria_admin
     restart: always
     ports:
-      - "8088:80"
+      - "9188:80"
     depends_on:
       - notaria-server
     networks:
@@ -118,7 +118,7 @@ services:
     container_name: notaria_landing
     restart: always
     ports:
-      - "8089:80"
+      - "9189:80"
     networks:
       - notaria-network
 
@@ -132,7 +132,7 @@ services:
     container_name: notaria_client
     restart: always
     ports:
-      - "8090:80"
+      - "9190:80"
     depends_on:
       - notaria-server
     networks:
