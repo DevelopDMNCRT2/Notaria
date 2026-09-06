@@ -313,7 +313,7 @@ pool.on('error', (err, client) => {
   console.error('Error inesperado en cliente inactivo de PostgreSQL:', err.message);
 });
 
-// Inicializar tabla de Citas
+// Inicializar tabla de Citas y n8n Chat Histories
 const initDB = async () => {
   try {
     await pool.query(`
@@ -328,13 +328,20 @@ const initDB = async () => {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+
+      CREATE TABLE IF NOT EXISTS n8n_chat_histories (
+        id SERIAL PRIMARY KEY,
+        session_id VARCHAR(255) NOT NULL,
+        message JSONB NOT NULL
+      );
     `);
-    console.log('Tabla Citas verificada.');
+    console.log('Tablas Citas y n8n_chat_histories verificadas.');
   } catch (err) {
     console.error('Error al inicializar la base de datos:', err);
   }
 };
 initDB();
+
 
 // ============================================================
 // --- ENDPOINTS DE CITAS ---
