@@ -1,0 +1,25 @@
+name: CI Pull Request Validation
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  validate-server:
+    name: Validate Backend Server
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Backend Dependencies
+        run: cd SERVER && npm ci --prefer-offline || npm install
+
+      - name: Check Backend Syntax
+        run: node --check SERVER/index.js
