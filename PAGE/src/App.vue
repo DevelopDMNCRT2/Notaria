@@ -19,9 +19,8 @@ import {
   MessageCircle
 } from 'lucide-vue-next';
 
-const whatsappNumber = "524431234567";
-const whatsappMessage = encodeURIComponent("Hola, me gustaría solicitar información y agendar una cita en la Notaría Publica 196.");
-const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${whatsappMessage}`;
+const clientPort = typeof window !== 'undefined' && window.location.port === '5173' ? '5174' : '8090';
+const whatsappUrl = import.meta.env.VITE_CLIENT_URL || (typeof window !== 'undefined' ? `${window.location.protocol}//${window.location.hostname}:${clientPort}` : 'http://localhost:8090');
 
 const categoriasServicios = ref([
   {
