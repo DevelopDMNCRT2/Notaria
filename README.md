@@ -140,6 +140,39 @@ cd CLIENT && npm install && npm run dev
 
 ---
 
+## 🔄 Cambios Recientes
+
+### Mejoras al Agente de IA (Lic. Sofía) — `n8n` + `SERVER`
+
+#### Lógica de Disponibilidad y Agendamiento Inteligente
+- Se refinó el flujo de consulta de disponibilidad para que, si el horario solicitado por el cliente no está disponible en el día elegido, el agente proponga primero otra hora **dentro del mismo día** antes de sugerir un día diferente.
+- Solo se sugiere un día alternativo si no existe ningún horario disponible en la jornada solicitada, o si el cliente expresamente lo pide (ej. "¿qué días tienes disponibles a las 10?").
+
+#### Validación Estricta de Parámetros en el Backend
+- Se añadieron validaciones en [`SERVER/index.js`](file:///Users/yaywiin/Desktop/DEVELOP/notaria_pruebas/SERVER/index.js) para los handlers `handleDisponibilidad` y `handleCreateCita`.
+- Ahora el servidor retorna **HTTP 400** si los campos `fecha` u `horario` llegan vacíos o ausentes, eliminando el comportamiento anterior donde valores por defecto causaban conflictos fantasma con citas existentes.
+
+#### Corrección de Parámetros en Nodos n8n
+- Se corrigió el mapeo de parámetros en los nodos `ToolHttpRequest` (`Agendar Cita` y `Consultar Disponibilidad`) para que el LLM envíe correctamente los campos `tramite`, `fecha`, `horario`, `nombre` y `telefono` usando la sintaxis de placeholders de n8n (`{campo}`).
+- Se configuró el nodo `MemoryBufferWindow` para usar `sessionIdType: customKey` apuntando al `SessionID` del Webhook, garantizando memoria conversacional persistente por usuario.
+
+#### Mejoras al System Prompt de Sofía
+- Se estableció como regla obligatoria que Sofía **se presente de forma formal y cordial en el primer mensaje** de cada conversación.
+- Se corrigió la instrucción para evitar que repita la presentación completa en mensajes posteriores de la misma sesión.
+- Se añadieron instrucciones claras sobre el flujo de negociación de horarios para mantener coherencia entre consultas de disponibilidad y respuestas al cliente.
+
+#### Tabla de Historial de Conversaciones
+- Se creó la tabla `n8n_chat_histories` en PostgreSQL para dar soporte de persistencia al nodo de memoria de LangChain en n8n.
+
+---
+
+## ⏳ Pendientes
+
+- [ ] Revisar que los cambios de estados (confirmado / rechazado) sean notificados al usuario por medio de WhatsApp.
+- [ ] Revisar que si se refieren al día por el nombre sin número (ej. "el lunes"), sea interpretado como el día correspondiente de la semana en curso y no de semanas anteriores o futuras.
+
+---
+
 ## 🔐 Seguridad y Buenas Prácticas
 * Las credenciales maestras y llaves de API (OpenAI, AWS/MinIO, DB Passwords) deben gestionarse estrictamente a través de variables de entorno seguras (`.env`) o el gestor de credenciales de n8n.
 * Los archivos `.env` y llaves privadas están excluidos del seguimiento de Git mediante `.gitignore`.
