@@ -56,13 +56,13 @@
                     <button @click="openFile(file.url)" class="p-2 text-brand-500 bg-brand-50 hover:bg-brand-100 dark:bg-brand-500/10 dark:text-brand-400 dark:hover:bg-brand-500/20 rounded-xl transition-colors" title="Ver">
                       <Eye class="w-4.5 h-4.5" />
                     </button>
-                    <a :href="file.url" target="_blank" download class="p-2 text-brand-500 bg-brand-50 hover:bg-brand-100 dark:bg-brand-500/10 dark:text-brand-400 dark:hover:bg-brand-500/20 rounded-xl transition-colors" title="Descargar">
+                    <a :href="file.downloadUrl || file.url" target="_blank" download class="p-2 text-brand-500 bg-brand-50 hover:bg-brand-100 dark:bg-brand-500/10 dark:text-brand-400 dark:hover:bg-brand-500/20 rounded-xl transition-colors" title="Descargar">
                       <Download class="w-4.5 h-4.5" />
                     </a>
                     <button @click="shareFile(file)" class="p-2 text-green-500 bg-green-50 hover:bg-green-100 dark:bg-green-500/10 dark:text-green-400 dark:hover:bg-green-500/20 rounded-xl transition-colors" title="Compartir">
                       <Share2 class="w-4.5 h-4.5" />
                     </button>
-                    <button @click="deleteFile(file.name)" class="p-2 text-red-500 bg-red-50 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20 rounded-xl transition-colors" title="Eliminar">
+                    <button @click="deleteFile(file)" class="p-2 text-red-500 bg-red-50 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20 rounded-xl transition-colors" title="Eliminar">
                       <Trash2 class="w-4.5 h-4.5" />
                     </button>
                   </div>
@@ -145,10 +145,21 @@ const shareFile = async (file) => {
   }
 };
 
-const deleteFile = async (fileName) => {
-  if (confirm(`¿Estás seguro de que deseas eliminar el archivo "${fileName}"?`)) {
-    // Aquí iría la lógica para llamar a la API de eliminación
-    alert("Función de eliminación en desarrollo.");
+const deleteFile = async (file) => {
+  const nameToDisplay = typeof file === 'object' ? file.name : file;
+  const fileKey = typeof file === 'object' ? file.key : file;
+
+  if (confirm(`¿Estás seguro de que deseas eliminar el archivo "${nameToDisplay}"?`)) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/files/${encodeURIComponent(fileKey)}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) throw new Error('Error al eliminar archivo');
+      await fetchFiles();
+    } catch (err) {
+      console.error('Error al eliminar archivo:', err);
+      alert(`No se pudo eliminar el archivo: ${err.message}`);
+    }
   }
 };
 
@@ -161,15 +172,21 @@ const fetchFiles = async () => {
     if (!response.ok) throw new Error('Error al cargar archivos');
     const files = await response.json();
 
-    recentFiles.value = files.map(f => ({
-      name: f.name,
-      size: formatFileSize(f.size),
-      icon: getFileIconByName(f.name),
-      colorClass: getFileColorByName(f.name),
-      url: f.url,
-      format: getExtension(f.name).toUpperCase() || 'Desconocido',
-      uploadDate: f.lastModified ? new Date(f.lastModified).toLocaleDateString('es-ES') : new Date().toLocaleDateString('es-ES')
-    }));
+    recentFiles.value = files.map(f => {
+      const viewUrl = f.url ? (f.url.startsWith('http') ? f.url : `${API_BASE_URL}${f.url}`) : '';
+      const downloadUrl = f.downloadUrl ? (f.downloadUrl.startsWith('http') ? f.downloadUrl : `${API_BASE_URL}${f.downloadUrl}`) : viewUrl;
+      return {
+        key: f.key,
+        name: f.name,
+        size: formatFileSize(f.size),
+        icon: getFileIconByName(f.name),
+        colorClass: getFileColorByName(f.name),
+        url: viewUrl,
+        downloadUrl: downloadUrl,
+        format: getExtension(f.name).toUpperCase() || 'Desconocido',
+        uploadDate: f.lastModified ? new Date(f.lastModified).toLocaleDateString('es-ES') : new Date().toLocaleDateString('es-ES')
+      };
+    });
   } catch (error) {
     console.error('Error cargando archivos:', error);
   } finally {

@@ -149,33 +149,27 @@ const uploadToS3 = (event) => {
 
 const uploadFile = async (file) => {
   uploading.value = true;
-  uploadStatus.value = `Preparando ${file.name}...`;
+  uploadStatus.value = `Subiendo ${file.name}...`;
 
   try {
-    uploadStatus.value = 'Obteniendo permiso de subida...';
-    const response = await fetch(`${API_BASE_URL}/api/upload`, {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch(`${API_BASE_URL}/api/files/upload`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fileName: file.name, fileType: file.type }),
+      body: formData,
     });
 
-    if (!response.ok) throw new Error('Error al obtener URL de subida');
-    const { uploadUrl, key } = await response.json();
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      throw new Error(errData.error || 'Error al subir archivo');
+    }
 
-    uploadStatus.value = `Subiendo ${file.name}...`;
-    const result = await fetch(uploadUrl, {
-      method: 'PUT',
-      body: file,
-      headers: { 'Content-Type': file.type },
-    });
-
-    if (!result.ok) throw new Error('Error al subir a S3');
-
+    const data = await response.json();
     uploadStatus.value = '¡Subida completa!';
-    showToast('success', `"${file.name}" subido exitosamente a AWS.`);
-    // Refrescar el almacenamiento real después de subir
+    showToast('success', `"${file.name}" subido exitosamente al almacenamiento.`);
     await fetchStorage();
-    console.log('Ruta en S3:', key);
+    console.log('Ruta de archivo:', data.key);
   } catch (error) {
     console.error('Error al subir:', error);
     uploadStatus.value = `Error: ${error.message}`;
