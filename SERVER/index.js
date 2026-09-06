@@ -30,8 +30,9 @@ const upload = multer({
 const app = express();
 const PORT = process.env.PORT || 3000;
 const N8N_WEBHOOK_URL = process.env.N8N_WEBHOOK_URL || 'https://dmncrt.app.n8n.cloud/webhook/notaria-asistente';
-const N8N_CONFIRMAR_CITA_URL = 'https://dmncrt.app.n8n.cloud/webhook/notaria-confirmar-cita';
-const N8N_RECHAZAR_CITA_URL  = 'https://dmncrt.app.n8n.cloud/webhook/notaria-rechazar-cita';
+const N8N_CONFIRMAR_CITA_URL = process.env.N8N_CONFIRMAR_CITA_URL || 'https://dmncrt.app.n8n.cloud/webhook/notaria-confirmar-cita';
+const N8N_RECHAZAR_CITA_URL  = process.env.N8N_RECHAZAR_CITA_URL  || 'https://dmncrt.app.n8n.cloud/webhook/notaria-rechazar-cita';
+const N8N_REAGENDAR_CITA_URL = process.env.N8N_REAGENDAR_CITA_URL || 'https://dmncrt.app.n8n.cloud/webhook/notaria-reagendar-cita';
 
 app.use(cors({
   origin: function (origin, callback) {
@@ -46,6 +47,14 @@ app.use(cors({
   credentials: true
 }));
 app.use(bodyParser.json());
+
+// Logger de peticiones entrantes para diagnóstico
+app.use((req, res, next) => {
+  if (req.url.startsWith('/api/') || req.url.includes('cita') || req.url.includes('solicitud') || req.url.includes('agendar')) {
+    console.log(`[REQ LOG] ${req.method} ${req.url} - Body:`, JSON.stringify(req.body || {}));
+  }
+  next();
+});
 
 // ============================================================
 // --- ENDPOINTS DE ALMACENAMIENTO (MINIO / S3) ---
@@ -417,9 +426,20 @@ app.put('/api/solicitudes/:id', async (req, res) => {
         ['rechazado', id]
       );
       const cita = rejectResult.rows[0];
-      // Notificar a n8n usando el mismo flujo central
+      const mensajeNotificacion = `Hola ${cita.client_nombre}, tu solicitud de cita para el trámite "${cita.tramite}" no ha podido ser agendada en la fecha propuesta. Por favor contáctanos para seleccionar un nuevo horario.`;
+      
+      // Registrar en historial de chat
+      messages.push({
+        id: messages.length + 1,
+        sender: 'Notaría 196 (Sistema)',
+        text: `❌ Solicitud rechazada: ${mensajeNotificacion}`,
+        timestamp: new Date(),
+        incoming: true
+      });
+
+      // Notificar a n8n para WhatsApp
       try {
-        await fetch(N8N_CONFIRMAR_CITA_URL, {
+        await fetch(N8N_RECHAZAR_CITA_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -430,10 +450,11 @@ app.put('/api/solicitudes/:id', async (req, res) => {
             fecha: cita.fecha,
             horario: cita.horario,
             estado: 'rechazado',
-            webhook_destino: 'https://notaria-server.vercel.app/api/webhook'
+            mensaje: mensajeNotificacion,
+            webhook_destino: process.env.SERVER_WEBHOOK_DESTINO || 'https://notaria-server.vercel.app/api/webhook'
           })
         });
-        console.log(`❌ Cita ID ${id} rechazada y notificada a n8n`);
+        console.log(`❌ Cita ID ${id} rechazada y notificada a n8n por WhatsApp`);
       } catch (n8nErr) {
         console.error('⚠️ Error al llamar n8n (rechazo):', n8nErr.message);
       }
@@ -449,10 +470,20 @@ app.put('/api/solicitudes/:id', async (req, res) => {
         ['reagendado', fecha, horario, id]
       );
       const cita = result.rows[0];
+      const mensajeNotificacion = `Hola ${cita.client_nombre}, tu cita para "${cita.tramite}" ha sido reagendada para el ${cita.fecha} a las ${cita.horario} hrs.`;
 
-      // Notificar reagendado a n8n
+      // Registrar en historial de chat
+      messages.push({
+        id: messages.length + 1,
+        sender: 'Notaría 196 (Sistema)',
+        text: `🔄 Cita reagendada: ${mensajeNotificacion}`,
+        timestamp: new Date(),
+        incoming: true
+      });
+
+      // Notificar reagendado a n8n para WhatsApp
       try {
-        await fetch(N8N_CONFIRMAR_CITA_URL, {
+        await fetch(N8N_REAGENDAR_CITA_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -463,10 +494,11 @@ app.put('/api/solicitudes/:id', async (req, res) => {
             fecha: cita.fecha,
             horario: cita.horario,
             estado: 'reagendado',
-            webhook_destino: 'https://notaria-server.vercel.app/api/webhook'
+            mensaje: mensajeNotificacion,
+            webhook_destino: process.env.SERVER_WEBHOOK_DESTINO || 'https://notaria-server.vercel.app/api/webhook'
           })
         });
-        console.log(`🔄 Cita ID ${id} reagendada y notificada a n8n`);
+        console.log(`🔄 Cita ID ${id} reagendada y notificada a n8n por WhatsApp`);
       } catch (n8nErr) {
         console.error('⚠️ Error al llamar n8n (reagendado):', n8nErr.message);
       }
@@ -480,8 +512,18 @@ app.put('/api/solicitudes/:id', async (req, res) => {
       ['confirmado', id]
     );
     const cita = result.rows[0];
+    const mensajeNotificacion = `Hola ${cita.client_nombre}, tu cita para "${cita.tramite}" ha sido CONFIRMADA para el ${cita.fecha} a las ${cita.horario} hrs. ¡Te esperamos en la Notaría Pública 196!`;
 
-    // 2. Disparar flujo n8n para enviar confirmación al cliente via WhatsApp
+    // Registrar en historial de chat
+    messages.push({
+      id: messages.length + 1,
+      sender: 'Notaría 196 (Sistema)',
+      text: `✅ Cita confirmada: ${mensajeNotificacion}`,
+      timestamp: new Date(),
+      incoming: true
+    });
+
+    // Disparar flujo n8n para enviar confirmación al cliente via WhatsApp
     const n8nPayload = {
       id: cita.id,
       nombre: cita.client_nombre,
@@ -490,7 +532,8 @@ app.put('/api/solicitudes/:id', async (req, res) => {
       fecha: cita.fecha,
       horario: cita.horario,
       estado: 'confirmado',
-      webhook_destino: 'https://notaria-server.vercel.app/api/webhook'
+      mensaje: mensajeNotificacion,
+      webhook_destino: process.env.SERVER_WEBHOOK_DESTINO || 'https://notaria-server.vercel.app/api/webhook'
     };
 
     try {
@@ -511,22 +554,120 @@ app.put('/api/solicitudes/:id', async (req, res) => {
   }
 });
 
-// Crear cita directamente desde admin
-app.post('/api/citas', async (req, res) => {
-  const { title, start, nombre, celular } = req.body;
-  const [fecha, horario] = start.split('T');
+// Helper para convertir cualquier texto o fecha a formato YYYY-MM-DD valido para Postgres
+const parseValidDate = (inputDate, rawStart) => {
+  let target = inputDate;
+  if (!target && rawStart && typeof rawStart === 'string') {
+    target = rawStart.includes('T') ? rawStart.split('T')[0] : rawStart;
+  }
+  if (!target || typeof target !== 'string') {
+    return new Date().toISOString().split('T')[0];
+  }
+
+  const str = target.trim();
+  // 1. Si ya es YYYY-MM-DD o ISO string
+  if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
+    return str.substring(0, 10);
+  }
+
+  // 2. Intentar parsear con Date
+  const parsed = new Date(str);
+  if (!isNaN(parsed.getTime())) {
+    const yyyy = parsed.getFullYear();
+    const mm = String(parsed.getMonth() + 1).padStart(2, '0');
+    const dd = String(parsed.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  // 3. Si vienen dias relativos en texto (ej. "lunes", "mañana")
+  const today = new Date();
+  const dayLower = str.toLowerCase();
+  
+  if (dayLower.includes('mañana') || dayLower.includes('manana')) {
+    today.setDate(today.getDate() + 1);
+  } else if (dayLower.includes('lunes')) {
+    const day = today.getDay();
+    const diff = (1 + 7 - day) % 7 || 7;
+    today.setDate(today.getDate() + diff);
+  } else if (dayLower.includes('martes')) {
+    const day = today.getDay();
+    const diff = (2 + 7 - day) % 7 || 7;
+    today.setDate(today.getDate() + diff);
+  } else if (dayLower.includes('miércoles') || dayLower.includes('miercoles')) {
+    const day = today.getDay();
+    const diff = (3 + 7 - day) % 7 || 7;
+    today.setDate(today.getDate() + diff);
+  } else if (dayLower.includes('jueves')) {
+    const day = today.getDay();
+    const diff = (4 + 7 - day) % 7 || 7;
+    today.setDate(today.getDate() + diff);
+  } else if (dayLower.includes('viernes')) {
+    const day = today.getDay();
+    const diff = (5 + 7 - day) % 7 || 7;
+    today.setDate(today.getDate() + diff);
+  }
+
+  const yyyy = today.getFullYear();
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const dd = String(today.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
+
+// Helper para convertir horario a formato HH:MM:SS
+const parseValidTime = (inputTime, rawStart) => {
+  if (inputTime && typeof inputTime === 'string') {
+    const timeMatch = inputTime.match(/(\d{1,2}):(\d{2})/);
+    if (timeMatch) {
+      const hh = timeMatch[1].padStart(2, '0');
+      const mm = timeMatch[2];
+      return `${hh}:${mm}:00`;
+    }
+  }
+  if (rawStart && typeof rawStart === 'string' && rawStart.includes('T')) {
+    const timePart = rawStart.split('T')[1];
+    if (timePart) return timePart.substring(0, 8);
+  }
+  return '09:00:00';
+};
+
+// Helper para procesar creación de cita o solicitud
+const handleCreateCita = async (req, res, defaultEstado = 'confirmado') => {
+  const { 
+    title, tramite, 
+    start, fecha: fechaInput, horario: horarioInput, 
+    nombre, client_nombre, 
+    celular, telefono, 
+    estado 
+  } = req.body;
+
+  const tramiteFinal = tramite || title || 'Consulta Notarial';
+  const nombreFinal = client_nombre || nombre || 'Cliente';
+  const telefonoFinal = telefono || celular || '';
+  const estadoFinal = estado || defaultEstado;
+
+  const fechaFinal = parseValidDate(fechaInput, start);
+  const horarioFinal = parseValidTime(horarioInput, start);
 
   try {
     const result = await pool.query(
       'INSERT INTO Citas (tramite, fecha, horario, client_nombre, telefono, estado) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-      [title, fecha, horario || '00:00:00', nombre, celular, 'confirmado']
+      [tramiteFinal, fechaFinal, horarioFinal, nombreFinal, telefonoFinal, estadoFinal]
     );
+    console.log(`✅ Cita/Solicitud creada exitosamente ID ${result.rows[0].id} (${tramiteFinal} - ${nombreFinal} - ${fechaFinal} ${horarioFinal})`);
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error('Error al crear cita:', err);
+    console.error('Error al crear cita/solicitud:', err);
     res.status(500).json({ error: err.message });
   }
-});
+};
+
+// Crear cita directamente desde admin o n8n (múltiples alias de compatibilidad)
+app.post('/api/citas', (req, res) => handleCreateCita(req, res, 'confirmado'));
+app.post('/citas', (req, res) => handleCreateCita(req, res, 'confirmado'));
+app.post('/api/solicitudes', (req, res) => handleCreateCita(req, res, 'pendiente'));
+app.post('/solicitudes', (req, res) => handleCreateCita(req, res, 'pendiente'));
+app.post('/api/agendar', (req, res) => handleCreateCita(req, res, 'pendiente'));
+app.post('/agendar', (req, res) => handleCreateCita(req, res, 'pendiente'));
 
 // Eliminar cita del calendario
 app.delete('/api/citas/:id', async (req, res) => {
@@ -575,7 +716,7 @@ app.put('/api/citas/:id', async (req, res) => {
     );
     const citaActualizada = result.rows[0];
 
-    // 6. Disparar flujo n8n para notificar al cliente via WhatsApp (Reagendado o Modificado)
+    // Disparar flujo n8n para enviar actualización de cita via WhatsApp
     const n8nPayload = {
       id: citaActualizada.id,
       nombre: citaActualizada.client_nombre,
@@ -584,11 +725,17 @@ app.put('/api/citas/:id', async (req, res) => {
       fecha: citaActualizada.fecha,
       horario: citaActualizada.horario,
       estado: citaActualizada.estado,
-      webhook_destino: 'https://notaria-server.vercel.app/api/webhook'
+      webhook_destino: process.env.SERVER_WEBHOOK_DESTINO || 'https://notaria-server.vercel.app/api/webhook'
     };
 
+    const targetWebhookUrl = citaActualizada.estado === 'reagendado' 
+      ? N8N_REAGENDAR_CITA_URL 
+      : citaActualizada.estado === 'rechazado' 
+        ? N8N_RECHAZAR_CITA_URL 
+        : N8N_CONFIRMAR_CITA_URL;
+
     try {
-      await fetch(N8N_CONFIRMAR_CITA_URL, {
+      await fetch(targetWebhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(n8nPayload)
