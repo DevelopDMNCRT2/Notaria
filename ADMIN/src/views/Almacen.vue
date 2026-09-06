@@ -53,7 +53,7 @@
                 <td class="px-6 py-4 whitespace-nowrap">{{ file.uploadDate }}</td>
                 <td class="px-6 py-4 text-right">
                   <div class="flex items-center justify-end gap-3">
-                    <button @click="openFile(file)" class="p-2 text-brand-500 bg-brand-50 hover:bg-brand-100 dark:bg-brand-500/10 dark:text-brand-400 dark:hover:bg-brand-500/20 rounded-xl transition-colors" title="Ver">
+                    <button @click="openFile(file)" class="p-2 text-blue-500 bg-blue-50 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20 rounded-xl transition-colors" title="Ver">
                       <Eye class="w-4.5 h-4.5" />
                     </button>
                     <a :href="file.downloadUrl || file.url" target="_blank" download class="p-2 text-brand-500 bg-brand-50 hover:bg-brand-100 dark:bg-brand-500/10 dark:text-brand-400 dark:hover:bg-brand-500/20 rounded-xl transition-colors" title="Descargar">
