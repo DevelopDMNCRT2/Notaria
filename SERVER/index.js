@@ -384,6 +384,95 @@ app.get('/api/citas', async (req, res) => {
   }
 });
 
+// Obtener disponibilidad de horarios para un día específico (09:00 - 15:30)
+const handleDisponibilidad = async (req, res) => {
+  try {
+    const { fecha: fechaQuery, hora: horaQuery } = req.query;
+    const fechaFinal = parseValidDate(fechaQuery);
+
+    const standardSlots = [
+      "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
+      "12:00", "12:30", "13:00", "13:30", "14:00", "14:30",
+      "15:00", "15:30"
+    ];
+
+    // Consultar citas no rechazadas para esa fecha
+    const result = await pool.query(
+      "SELECT horario, estado FROM Citas WHERE fecha = $1 AND estado != 'rechazado'",
+      [fechaFinal]
+    );
+
+    const ocupados = result.rows.map(row => {
+      if (!row.horario) return null;
+      const parts = row.horario.split(':');
+      return `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
+    }).filter(Boolean);
+
+    const libres = standardSlots.filter(slot => !ocupados.includes(slot));
+
+    let horaSolicitada = null;
+    let disponible = null;
+    let sugerencias = [];
+
+    if (horaQuery) {
+      const match = String(horaQuery).match(/(\d{1,2}):(\d{2})/);
+      if (match) {
+        horaSolicitada = `${match[1].padStart(2, '0')}:${match[2]}`;
+      } else {
+        horaSolicitada = horaQuery;
+      }
+
+      disponible = libres.includes(horaSolicitada);
+
+      if (!disponible) {
+        // Buscar 3 sugerencias en el mismo día
+        const reqIdx = standardSlots.indexOf(horaSolicitada);
+
+        // Buscar primero hacia adelante (+30m, +1h, +1:30h)
+        if (reqIdx !== -1) {
+          for (let i = reqIdx + 1; i < standardSlots.length; i++) {
+            if (libres.includes(standardSlots[i])) {
+              sugerencias.push(standardSlots[i]);
+              if (sugerencias.length === 3) break;
+            }
+          }
+        }
+
+        // Si faltan sugerencias (ej. pidió a las 15:00 o 15:30), buscar hacia atrás en el mismo día
+        if (sugerencias.length < 3) {
+          const searchIdx = reqIdx !== -1 ? reqIdx : standardSlots.length;
+          for (let i = searchIdx - 1; i >= 0; i--) {
+            if (libres.includes(standardSlots[i]) && !sugerencias.includes(standardSlots[i])) {
+              sugerencias.push(standardSlots[i]);
+              if (sugerencias.length === 3) break;
+            }
+          }
+        }
+
+        // Ordenar sugerencias cronológicamente
+        sugerencias.sort((a, b) => standardSlots.indexOf(a) - standardSlots.indexOf(b));
+      }
+    }
+
+    res.json({
+      fecha: fechaFinal,
+      hora_solicitada: horaSolicitada,
+      disponible: disponible,
+      horarios_ocupados: ocupados,
+      horarios_libres: libres,
+      sugerencias: sugerencias,
+      total_libres: libres.length
+    });
+  } catch (err) {
+    console.error('Error en /api/disponibilidad:', err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+app.get('/api/disponibilidad', handleDisponibilidad);
+app.get('/disponibilidad', handleDisponibilidad);
+
+
 // Obtener todas las citas PENDIENTES (solicitudes)
 app.get('/api/solicitudes', async (req, res) => {
   try {
@@ -649,6 +738,58 @@ const handleCreateCita = async (req, res, defaultEstado = 'confirmado') => {
   const horarioFinal = parseValidTime(horarioInput, start);
 
   try {
+    // Validar si el horario ya está ocupado (por cualquier cita no rechazada)
+    const conflictoRes = await pool.query(
+      "SELECT id FROM Citas WHERE fecha = $1 AND horario = $2 AND estado != 'rechazado'",
+      [fechaFinal, horarioFinal]
+    );
+
+    if (conflictoRes.rows.length > 0) {
+      // Calcular alternativas en el mismo día
+      const standardSlots = [
+        "09:00:00", "09:30:00", "10:00:00", "10:30:00", "11:00:00", "11:30:00",
+        "12:00:00", "12:30:00", "13:00:00", "13:30:00", "14:00:00", "14:30:00",
+        "15:00:00", "15:30:00"
+      ];
+
+      const citasDiaRes = await pool.query(
+        "SELECT horario FROM Citas WHERE fecha = $1 AND estado != 'rechazado'",
+        [fechaFinal]
+      );
+      const ocupados = citasDiaRes.rows.map(r => r.horario);
+      const libres = standardSlots.filter(s => !ocupados.includes(s));
+
+      const reqIdx = standardSlots.indexOf(horarioFinal);
+      let sugerencias = [];
+
+      if (reqIdx !== -1) {
+        for (let i = reqIdx + 1; i < standardSlots.length; i++) {
+          if (libres.includes(standardSlots[i])) {
+            sugerencias.push(standardSlots[i].substring(0, 5));
+            if (sugerencias.length === 3) break;
+          }
+        }
+      }
+
+      if (sugerencias.length < 3) {
+        const searchIdx = reqIdx !== -1 ? reqIdx : standardSlots.length;
+        for (let i = searchIdx - 1; i >= 0; i--) {
+          if (libres.includes(standardSlots[i]) && !sugerencias.includes(standardSlots[i].substring(0, 5))) {
+            sugerencias.push(standardSlots[i].substring(0, 5));
+            if (sugerencias.length === 3) break;
+          }
+        }
+      }
+
+      sugerencias.sort((a, b) => standardSlots.indexOf(a + ":00") - standardSlots.indexOf(b + ":00"));
+
+      return res.status(409).json({
+        error: "horario_ocupado",
+        message: `El horario ${horarioFinal.substring(0, 5)} ya está reservado para la fecha ${fechaFinal}.`,
+        alternativas_mismo_dia: sugerencias
+      });
+    }
+
     const result = await pool.query(
       'INSERT INTO Citas (tramite, fecha, horario, client_nombre, telefono, estado) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
       [tramiteFinal, fechaFinal, horarioFinal, nombreFinal, telefonoFinal, estadoFinal]
@@ -660,6 +801,7 @@ const handleCreateCita = async (req, res, defaultEstado = 'confirmado') => {
     res.status(500).json({ error: err.message });
   }
 };
+
 
 // Crear cita directamente desde admin o n8n (múltiples alias de compatibilidad)
 app.post('/api/citas', (req, res) => handleCreateCita(req, res, 'confirmado'));
