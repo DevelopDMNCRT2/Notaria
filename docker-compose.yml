@@ -46,10 +46,10 @@ services:
     ports:
       - "5678:5678"
     environment:
-      - N8N_HOST=74.208.149.57
+      - N8N_HOST=n8n.74.208.149.57.nip.io
       - N8N_PORT=5678
       - N8N_PROTOCOL=http
-      - N8N_WEBHOOK_URL=http://74.208.149.57:5678/
+      - N8N_WEBHOOK_URL=http://n8n.74.208.149.57.nip.io/
       - GENERIC_TIMEZONE=America/Mexico_City
       - TZ=America/Mexico_City
       - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
@@ -82,7 +82,7 @@ services:
       AWS_ACCESS_KEY_ID: notaria_admin
       AWS_SECRET_ACCESS_KEY: Notaria2026SecurePass!
       S3_ENDPOINT: http://notaria-minio:9000
-      S3_PUBLIC_URL: http://74.208.149.57:9000
+      S3_PUBLIC_URL: http://s3.74.208.149.57.nip.io
       N8N_WEBHOOK_URL: http://notaria-n8n:5678/webhook/notaria-asistente
       N8N_CONFIRMAR_CITA_URL: http://notaria-n8n:5678/webhook/notaria-confirmar-cita
       N8N_RECHAZAR_CITA_URL: http://notaria-n8n:5678/webhook/notaria-rechazar-cita
