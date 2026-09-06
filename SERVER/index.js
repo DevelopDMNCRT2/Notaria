@@ -83,6 +83,36 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
   }
 });
 
+const getMimeTypeByExtension = (filename) => {
+  const ext = (filename || '').split('.').pop().toLowerCase();
+  const mimeTypes = {
+    pdf: 'application/pdf',
+    png: 'image/png',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    gif: 'image/gif',
+    webp: 'image/webp',
+    svg: 'image/svg+xml',
+    bmp: 'image/bmp',
+    txt: 'text/plain; charset=utf-8',
+    html: 'text/html',
+    json: 'application/json',
+    mp4: 'video/mp4',
+    webm: 'video/webm',
+    mp3: 'audio/mpeg',
+    wav: 'audio/wav',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    doc: 'application/msword',
+    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    xls: 'application/vnd.ms-excel',
+    pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    ppt: 'application/vnd.ms-powerpoint',
+    zip: 'application/zip',
+    rar: 'application/x-rar-compressed'
+  };
+  return mimeTypes[ext] || 'application/octet-stream';
+};
+
 // Streaming de previsualización directa desde MinIO/S3
 app.get('/api/files/view/*key', async (req, res) => {
   try {
@@ -96,9 +126,11 @@ app.get('/api/files/view/*key', async (req, res) => {
     });
 
     const data = await s3Client.send(command);
-    if (data.ContentType) {
-      res.setHeader('Content-Type', data.ContentType);
+    let contentType = data.ContentType;
+    if (!contentType || contentType === 'application/octet-stream' || contentType === 'binary/octet-stream') {
+      contentType = getMimeTypeByExtension(key);
     }
+    res.setHeader('Content-Type', contentType);
     res.setHeader('Content-Disposition', 'inline');
     if (data.ContentLength) {
       res.setHeader('Content-Length', data.ContentLength);

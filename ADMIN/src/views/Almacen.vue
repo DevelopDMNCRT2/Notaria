@@ -53,7 +53,7 @@
                 <td class="px-6 py-4 whitespace-nowrap">{{ file.uploadDate }}</td>
                 <td class="px-6 py-4 text-right">
                   <div class="flex items-center justify-end gap-3">
-                    <button @click="openFile(file.url)" class="p-2 text-brand-500 bg-brand-50 hover:bg-brand-100 dark:bg-brand-500/10 dark:text-brand-400 dark:hover:bg-brand-500/20 rounded-xl transition-colors" title="Ver">
+                    <button @click="openFile(file)" class="p-2 text-brand-500 bg-brand-50 hover:bg-brand-100 dark:bg-brand-500/10 dark:text-brand-400 dark:hover:bg-brand-500/20 rounded-xl transition-colors" title="Ver">
                       <Eye class="w-4.5 h-4.5" />
                     </button>
                     <a :href="file.downloadUrl || file.url" target="_blank" download class="p-2 text-brand-500 bg-brand-50 hover:bg-brand-100 dark:bg-brand-500/10 dark:text-brand-400 dark:hover:bg-brand-500/20 rounded-xl transition-colors" title="Descargar">
@@ -117,8 +117,21 @@ const filteredFiles = computed(() => {
   });
 });
 
-const openFile = (url) => {
-  window.open(url, '_blank');
+const openFile = (fileOrUrl) => {
+  const url = typeof fileOrUrl === 'object' ? fileOrUrl.url : fileOrUrl;
+  const fileName = typeof fileOrUrl === 'object' ? fileOrUrl.name : (url || '');
+  if (!url) return;
+
+  const ext = (fileName.split('.').pop() || url.split('?')[0].split('.').pop() || '').toLowerCase();
+  const officeExtensions = ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'];
+
+  if (officeExtensions.includes(ext)) {
+    const absoluteUrl = url.startsWith('http') ? url : `${window.location.origin}${url}`;
+    const googleViewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(absoluteUrl)}`;
+    window.open(googleViewerUrl, '_blank');
+  } else {
+    window.open(url, '_blank');
+  }
 };
 
 const shareFile = async (file) => {
