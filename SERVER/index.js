@@ -34,6 +34,41 @@ const N8N_CONFIRMAR_CITA_URL = process.env.N8N_CONFIRMAR_CITA_URL || 'https://dm
 const N8N_RECHAZAR_CITA_URL  = process.env.N8N_RECHAZAR_CITA_URL  || 'https://dmncrt.app.n8n.cloud/webhook/notaria-rechazar-cita';
 const N8N_REAGENDAR_CITA_URL = process.env.N8N_REAGENDAR_CITA_URL || 'https://dmncrt.app.n8n.cloud/webhook/notaria-reagendar-cita';
 
+// Helper: convierte fecha de BD (Date object o string ISO/YYYY-MM-DD) a texto natural en español
+// Fuerza interpretación UTC para evitar desfase de zona horaria
+const formatFechaHumana = (fecha) => {
+  try {
+    let isoStr;
+    if (fecha instanceof Date) {
+      isoStr = fecha.toISOString().split('T')[0];
+    } else if (typeof fecha === 'string') {
+      isoStr = fecha.includes('T') ? fecha.split('T')[0] : fecha.trim().substring(0, 10);
+    } else {
+      return String(fecha);
+    }
+    // Parsear como UTC para evitar desfase de zona horaria
+    const [year, month, day] = isoStr.split('-').map(Number);
+    const d = new Date(Date.UTC(year, month - 1, day));
+    return d.toLocaleDateString('es-MX', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      timeZone: 'UTC'
+    });
+  } catch {
+    return String(fecha);
+  }
+};
+
+// Helper: convierte horario de BD (HH:MM:SS o HH:MM) a formato legible HH:MM
+const formatHorarioHumano = (horario) => {
+  if (!horario || typeof horario !== 'string') return String(horario);
+  const match = horario.match(/(\d{1,2}):(\d{2})/);
+  if (match) return `${match[1].padStart(2, '0')}:${match[2]}`;
+  return horario;
+};
+
 app.use(cors({
   origin: function (origin, callback) {
     // Permite subdominios vercel, localhost, IP del VPS o sin origin
@@ -523,13 +558,13 @@ app.put('/api/solicitudes/:id', async (req, res) => {
         ['rechazado', id]
       );
       const cita = rejectResult.rows[0];
-      const mensajeNotificacion = `Hola ${cita.client_nombre}, tu solicitud de cita para el trámite "${cita.tramite}" no ha podido ser agendada en la fecha propuesta. Por favor contáctanos para seleccionar un nuevo horario.`;
+      const mensajeNotificacion = `Hola ${cita.client_nombre}, lamentamos informarte que tu solicitud de cita para el trámite de ${cita.tramite} no pudo ser agendada en la fecha propuesta. Te pedimos nos contactes para encontrar un horario que te acomode.`;
       
       // Registrar en historial de chat
       messages.push({
         id: messages.length + 1,
         sender: 'Notaría 196 (Sistema)',
-        text: `❌ Solicitud rechazada: ${mensajeNotificacion}`,
+        text: `Solicitud rechazada: ${mensajeNotificacion}`,
         timestamp: new Date(),
         incoming: true
       });
@@ -567,13 +602,13 @@ app.put('/api/solicitudes/:id', async (req, res) => {
         ['reagendado', fecha, horario, id]
       );
       const cita = result.rows[0];
-      const mensajeNotificacion = `Hola ${cita.client_nombre}, tu cita para "${cita.tramite}" ha sido reagendada para el ${cita.fecha} a las ${cita.horario} hrs.`;
+      const mensajeNotificacion = `Hola ${cita.client_nombre}, queremos avisarte que tu cita de ${cita.tramite} ha sido reagendada para el ${formatFechaHumana(cita.fecha)} a las ${formatHorarioHumano(cita.horario)}. Quedamos a tus órdenes si necesitas algo más.`;
 
       // Registrar en historial de chat
       messages.push({
         id: messages.length + 1,
         sender: 'Notaría 196 (Sistema)',
-        text: `🔄 Cita reagendada: ${mensajeNotificacion}`,
+        text: mensajeNotificacion,
         timestamp: new Date(),
         incoming: true
       });
@@ -609,13 +644,13 @@ app.put('/api/solicitudes/:id', async (req, res) => {
       ['confirmado', id]
     );
     const cita = result.rows[0];
-    const mensajeNotificacion = `Hola ${cita.client_nombre}, tu cita para "${cita.tramite}" ha sido CONFIRMADA para el ${cita.fecha} a las ${cita.horario} hrs. ¡Te esperamos en la Notaría Pública 196!`;
+    const mensajeNotificacion = `Hola ${cita.client_nombre}, con gusto te confirmamos tu cita de ${cita.tramite} para el ${formatFechaHumana(cita.fecha)} a las ${formatHorarioHumano(cita.horario)}. Te esperamos en la Notaría Pública 196.`;
 
     // Registrar en historial de chat
     messages.push({
       id: messages.length + 1,
       sender: 'Notaría 196 (Sistema)',
-      text: `✅ Cita confirmada: ${mensajeNotificacion}`,
+      text: mensajeNotificacion,
       timestamp: new Date(),
       incoming: true
     });
