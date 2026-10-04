@@ -218,7 +218,7 @@ import {
   ListIcon,
   PlugInIcon,
 } from "../../icons";
-import { Archive, Calendar } from "lucide-vue-next";
+import { Archive, Calendar, ClipboardList } from "lucide-vue-next";
 import { useSidebar } from "@/composables/useSidebar";
 
 const route = useRoute();
@@ -231,7 +231,7 @@ const userRole = currentUser.rol || ''
 const isOperativo = userRole === 'Operativo'
 
 // Rutas restringidas para el rol Operativo
-const restrictedPaths = ['/usuarios', '/almacen', '/archivos']
+const restrictedPaths = ['/usuarios', '/almacen', '/archivos', '/grill']
 
 const allMenuGroups = [
   {
@@ -261,6 +261,11 @@ const allMenuGroups = [
         icon: ChatIcon,
         name: "Solicitudes",
         path: "/solicitudes",
+      },
+      {
+        icon: ClipboardList,
+        name: "Cuestionario",
+        path: "/grill",
       },
     ],
   },

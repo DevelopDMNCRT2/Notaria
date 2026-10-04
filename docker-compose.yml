@@ -86,6 +86,8 @@ services:
       N8N_WEBHOOK_URL: http://notaria-n8n:5678/webhook/notaria-asistente
       N8N_CONFIRMAR_CITA_URL: http://notaria-n8n:5678/webhook/notaria-confirmar-cita
       N8N_RECHAZAR_CITA_URL: http://notaria-n8n:5678/webhook/notaria-rechazar-cita
+      # Cuestionario (grill): base pública de los links /grill/:token
+      GRILL_PUBLIC_URL: https://notaria.74.208.149.57.nip.io
     depends_on:
       notaria-db:
         condition: service_healthy

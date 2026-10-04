@@ -70,6 +70,16 @@ const router = createRouter({
       },
     },
     {
+      // Cuestionario de requerimientos del asistente (desechable: ver SERVER/grill/README.md)
+      path: '/grill',
+      name: 'Grill',
+      component: () => import('../views/Grill.vue'),
+      meta: {
+        title: 'Cuestionario',
+        requiresAdmin: true,
+      },
+    },
+    {
       path: '/form-elements',
       name: 'Form Elements',
       component: () => import('../views/Forms/FormElements.vue'),

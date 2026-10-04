@@ -85,6 +85,7 @@ app.use(bodyParser.json());
 
 // Logger de peticiones entrantes para diagnóstico
 app.use((req, res, next) => {
+  if (req.url.startsWith('/api/grill')) return next(); // el grill no se loguea (token en la URL)
   if (req.url.startsWith('/api/') || req.url.includes('cita') || req.url.includes('solicitud') || req.url.includes('agendar')) {
     console.log(`[REQ LOG] ${req.method} ${req.url} - Body:`, JSON.stringify(req.body || {}));
   }
@@ -370,6 +371,9 @@ const initDB = async () => {
   }
 };
 initDB();
+
+// --- Cuestionario de requerimientos (grill). Desechable: ver SERVER/grill/README.md ---
+require('./grill')(app, { pool, s3Client, bucket: process.env.AWS_BUCKET_NAME || 'notaria-documentos' });
 
 // ============================================================
 // --- ENDPOINTS DE CITAS ---
