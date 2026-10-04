@@ -46,6 +46,8 @@ O desde el admin → **Cuestionario** → "Crear link". El admin pide confirmar 
 client_max_body_size 160m;          # sin esto las subidas > 1 MB fallan con 413
 location ~ ^/(grill|api/grill)/ {
     access_log off;                  # el token va en la URL
+    error_log /var/log/nginx/error.log error;
+    proxy_request_buffering off;
     proxy_pass http://127.0.0.1:9189;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
